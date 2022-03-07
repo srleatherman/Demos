@@ -1,0 +1,74 @@
+#include "Encoder.h"
+#define outputA 2
+#define outputB 5
+#define motorVoltage 9
+#define button 4
+#define signOfVoltage 7
+#define flagIndicator 12
+
+Encoder myEnc(outputA, outputB);
+int overallTime; 
+double angularVelocity;
+int time_elapsed = 0;
+int startTime=0;
+int startPosition;
+int finishPosition;
+float finishAngle;
+float startAngle;
+int duration;
+int FIXED_CYCLE_TIME = 8; // unit is in ms
+float pi = 3.1415; // known constant
+int cpr = 3200; // known from the motor data sheet
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(19200);
+   
+  pinMode(button, OUTPUT);
+  digitalWrite(button, HIGH);
+  
+  pinMode(signOfVoltage,OUTPUT);
+  digitalWrite(signOfVoltage, HIGH);
+  
+  pinMode(motorVoltage, OUTPUT);
+  analogWrite(motorVoltage, 0);
+  
+  pinMode(flagIndicator, INPUT);
+ 
+  startPosition = myEnc.read(); // set the start positon equal to 0
+  
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  analogWrite(motorVoltage, 100);
+  startTime = millis();
+
+  if(millis()<=FIXED_CYCLE_TIME+overallTime){
+    finishPosition = myEnc.read(); // sets the final position equal to the current position
+  //the equation for angularVelocity is final angle - start angle/ time
+  //the equation angle from counts is counts*2*pi/counts per rotation
+  //FIXED_CYCLE_TIME is divided by 1000 because I need to change ms to seconds.
+  //the final units are rads/sec
+    finishAngle = (float)finishPosition*2*pi/(float)cpr;
+    startAngle = (float)startPosition*2*pi/(float)cpr;
+    angularVelocity = (float)1000*(finishAngle-startAngle)/((float)(startTime - duration));
+    startPosition = finishPosition;
+    duration = startTime;// sets the start positon to the finish position for the next iteration
+  }
+   overallTime = millis();
+  
+  if(overallTime <= 3000 && overallTime >=1000){
+    Serial.print(overallTime);
+    Serial.print('\t');
+    Serial.println(angularVelocity);
+    if(overallTime >1000){
+      analogWrite(motorVoltage, 255);
+    }
+  }
+  if((overallTime - startTime) != FIXED_CYCLE_TIME){
+    delay(FIXED_CYCLE_TIME - (overallTime - startTime));
+  }
+  if ((overallTime - startTime) > FIXED_CYCLE_TIME){
+    Serial.println("ERROR: the main function takes longer than the desired sampling rate");  
+  }
+}
