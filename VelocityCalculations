@@ -1,0 +1,162 @@
+#include 'math.h'
+//A = CLK
+//B = DT
+
+//GLOBAL VARIABLES  
+int cPerRot = 40;    //20 clicks per full cycle = 40 counts
+const float b = 0.1;        //distance between wheels
+const float r = 0.05;       //radius of the wheels
+float phiN = 0.0;           //angle between the wheels
+float phiO = 0.0;
+float xN = 0.0;             //x position
+float xO = 0.0;
+float yN = 0.0;             //y position
+float yO = 0.0;
+float angVel = 0;           //angular velocity
+float newTime = 0.0;        //time attained with millis()
+float oldTime = 0.0;
+float deltaT = 0.0;
+bool change = 0;
+
+//RIGHT ENCODER PIN ASSIGNMENTS
+int aPinR = 3; //ISR
+int bPinR = 12;
+int aValR = 0;
+int bValR = 0;
+int rotationValR = 0;
+float rotationValRadR = 0.0;
+float dr = 0.0;                   //change in R calculated in the ISR during the loop's delay
+float drold = 0.0
+const float DELTA = PI/10;        //this corresponds to the amount of radians per one click of the encoder. 2*pi / 20 = pi / 10 (there are 20 clicks per cycle)
+float angRightVel = 0.0;
+float velocityRight = 0.0;
+
+//LEFT ENCODER PIN ASSIGNMENTS
+int aPinL = 2; //ISR 
+int bPinL = 13;
+int aValL = 0;
+int bValL = 0;
+int rotationValL = 0;
+float rotationValRadL = 0.0;
+float dl = 0.0;                   //change in L calculated in the ISR during the loop's delay
+float dlold = 0.0;
+float angLeftVel = 0.0;
+float velocityLeft = 0.0;
+
+bool printSerialR = 0;
+bool printSerialL = 0;
+
+int aPrevValR = digitalRead(aPinR);
+int aPrevValL = digitalRead(aPinL);
+
+//RIGHT ROTATION ISR
+void countRotationRight(){
+  aValR = digitalRead(aPinR);
+  bValR = digitalRead(bPinR);
+
+//encoder should read two counts per turn instead of just going up by one. 
+  if (aValR == bValR) {
+    rotationValR -= 2;  //count 1 CCW
+    dr -= DELTA;        //1 CCW count -> negative change in velocity
+  }
+  else {
+    rotationValR += 2;  //count 1 CW
+    dr += DELTA;        //1 CW count -> positive change in velocity
+    }
+
+  //Convert to radians and calculate change in R.
+  rotationValRadR = rotationValR * 2 * PI / cPerRot; //use equation from header for converting to radians
+
+  change = 1;         //bool indicates that there's a position change to report in loop()
+}
+
+//LEFT ROTATION ISR
+void countRotationLeft(){
+  aValL = digitalRead(aPinL);
+  bValL = digitalRead(bPinL);
+
+  if (aValL == bValL) {
+    rotationValL -= 1;  //count 1 CCW
+    dl -= DELTA;        //1 CCW count -> negative change in velocity
+  }
+  else {
+    rotationValL += 1;  //count 1 CW
+    dl += DELTA;        //1 CW count -> positive change in velocity
+  }
+  //Convert to radians and calculate change in L.
+  rotationValRadL = rotationValL * 2 * PI / cPerRot; //use equation from header for converting to radians
+  
+  change = 1;           //bool indicates that there's a position change to report in loop()
+}
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  pinMode(aPinR, INPUT_PULLUP);
+  pinMode(bPinR, INPUT_PULLUP);
+
+  pinMode(aPinL, INPUT_PULLUP);
+  pinMode(bPinL, INPUT_PULLUP);
+  
+  attachInterrupt(digitalPinToInterrupt(aPinR), countRotationRight, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(aPinL), countRotationLeft, CHANGE);
+}
+
+void loop() {
+    newTime = micros(); 
+    deltaT = (newTime - oldTime)/1000000;   //deltaT should be in seconds, so divide by 1 million to go from microseconds to seconds. 
+
+    //calculate the angular velocity by dividing the change in radians by the change in time.
+    angRightVel = (dr-drold)/deltaT;  
+    angLeftVel = (dl-dlold) / deltaT;
+
+    velocityLeft = r * angLeftVel;
+    velocityRight = r * angRightVel;
+    
+    //equations from assignment 2 handout
+    xN = xO + deltaT * cos(phiO) * (velocityLeft + velocityRight) / 2;
+    yN = yO + deltaT * sin(phiO) * (velocityLeft + velocityRight) / 2;
+    phiN = phiO + deltaT * (1/b)*(velocityRight - velocityLeft);
+
+    //print x, y, and phi position information
+    if (change) {
+      Serial.print(xN);
+      Serial.print("\t");
+      Serial.print(yN);
+      Serial.print("\t");
+      Serial.print(phiN);
+      Serial.print("\n");
+      printSerialR = 0;
+      printSerialL = 0;
+    }
+
+    //reset and change old variables to new variables. 
+    change = 0;
+    xO = xN;
+    yO = yN;
+    phiO = phiN;
+
+    oldTime = newTime;
+    drold = dr;
+    dlold = dl;
+    
+  delay(100); //delay in order to accumulate ISR triggers.
+}
+
+switch (data) { 
+  case '1': 
+     newPosition =  (2*pi) - rotationValRadR; 
+    break;
+  case '2': 
+    newPosition =  ((3*pi)/2) - rotationValRadR 
+    break;
+  case '3': 
+    newPosition =  (pi) - rotationValRadR 
+    break;
+  case '4': 
+    newPosition =  (pi/2) - rotationValRadR 
+    break;
+  default: 
+    delay(200); 
+    break;
+}
