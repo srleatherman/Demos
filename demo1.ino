@@ -3,10 +3,11 @@
 #define output2B 3 //this pin is output B for the encoder motor 2
 #define outputA 2 //this pin is output A for the encoder motor 1
 #define outputB 5 // this pin is output B for the encoder motor 1
-#define motorVoltage 9 //this is one of the two voltage pwm pins we could have picked
-#define motorVoltage2 10//thi is for the second motor voltage and a pwm pin
+#define motorVoltageRight 9 //this is one of the two voltage pwm pins we could have picked
+#define motorVoltageLeft 10//thi is for the second motor voltage and a pwm pin
 #define button 4 // this pin is for setting the interupt
-#define signOfVoltage 7 // this is what direction the wheel will turn 
+#define signOfVoltage 7 // this is what direction the wheel will turn motor 1
+#define signOfVoltLeft 8
 #define flagIndicator 12 // this pin is if there is a flag
 
 //the following line of code sets up the encoder to read from outputs a and b and will be used throughout the code
@@ -53,9 +54,13 @@ void setup() {
   
   pinMode(signOfVoltage,OUTPUT);
   digitalWrite(signOfVoltage, HIGH);
-  
-  pinMode(motorVoltage, OUTPUT);
 
+  pinMode(signOfVoltLeft,OUTPUT);
+  digitalWrite(signOfVoltLeft, HIGH);
+  
+  pinMode(motorVoltageRight, OUTPUT);
+  pinMode(motorVoltageLeft, OUTPUT);
+  
   //set all of my input pins
   pinMode(flagIndicator, INPUT); 
 }
@@ -122,7 +127,7 @@ void controllerOne(float desiredAngle,float currentAngle){
     controlSignal = 255;
   }
   //this writes to the pin that controls the voltage the voltage we derived.  
-  analogWrite(motorVoltage, controlSignal);
+  analogWrite(motorVoltageRight, controlSignal);
   startPosition = currentAngle;
 }
 void controllerTwo(float desiredAngle,float currentAngle){
@@ -153,6 +158,6 @@ void controllerTwo(float desiredAngle,float currentAngle){
     controlSignal = 255;
   }
   //this writes to the pin that controls the voltage the voltage we derived.  
-  analogWrite(motorVoltage, controlSignal);
+  analogWrite(motorVoltageLeft, controlSignal);
   startPosition = currentAngle;
 }
