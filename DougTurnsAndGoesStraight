@@ -1,0 +1,158 @@
+#include "Encoder.h" //this gives us access to the encoder.h files 
+#define output2A 3 //this pin is output A for the encoder motor 2
+#define output2B 6 //this pin is output B for the encoder motor 2
+#define outputA 5 //this pin is output A for the encoder motor 1
+#define outputB 2 // this pin is output B for the encoder motor 1
+#define motorVoltageRight 9 //this is one of the two voltage pwm pins we could have picked
+#define motorVoltageLeft 10//thi is for the second motor voltage and a pwm pin
+#define button 4 // this pin is for setting the interupt
+#define signOfVoltage 7 // this is what direction the wheel will turn motor 1
+#define signOfVoltLeft 8
+#define flagIndicator 12 // this pin is if there is a flag
+
+Encoder motorRight(outputA, outputB);
+Encoder motorLeft(output2A, output2B);
+
+int loopcount = 0;
+float controlSignall;
+float controlSignalr;
+float desiredVoltagel;
+float desiredVoltager;
+float desiredVoltagePWMl;
+float desiredVoltagePWMr;
+float eleft;
+float eright;
+float Kp = .2;
+
+//float Kp =.09;
+
+int currentCountsRight;
+int currentCountsLeft;
+float currentAngleRight;
+float currentAngleLeft;
+
+float desiredDistance = 0.914;
+float desiredAngle =0;
+
+float pi = 3.1415;
+int cpr = 3200;
+int rando;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(19200);
+  //set up all of my output pins 
+  pinMode(button, OUTPUT);
+  digitalWrite(button, HIGH);
+  
+  pinMode(signOfVoltage,OUTPUT);
+  digitalWrite(signOfVoltage, HIGH);
+
+  pinMode(signOfVoltLeft,OUTPUT);
+  digitalWrite(signOfVoltLeft, HIGH);
+  
+  pinMode(motorVoltageRight, OUTPUT);
+ 
+  
+  pinMode(motorVoltageLeft, OUTPUT);
+
+  
+  //set all of my input pins
+  pinMode(flagIndicator, INPUT);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  
+  desiredDistance= 0; // this is in meters
+ int givenAngle ;
+ int r =0.05;
+ int totalDistance, currentDistance;
+ float degreePerCounts = 90; 
+
+ int countsRotation = (givenAngle/degreePerCounts); 
+ float distancePerCount = ((float)(r*2*pi))/((float)4); 
+ desiredDistance = 0.3048; //countsRotation*distancePerCount; 
+ desiredAngle = desiredDistance/0.05; // 0.05m is equivalent to 1 rad
+  
+  //reads the current state of the encoder in counts
+  currentCountsRight = motorRight.read(); // this is reading the current counts from the encoder
+  currentCountsLeft = motorLeft.read();
+  
+  loopcount = loopcount + 1;
+  if (loopcount == 5) {
+      //
+      loopcount = 0;
+  }  
+  
+  currentAngleRight = (float)currentCountsRight*2*pi/(float)cpr;
+  currentAngleLeft = (float)currentCountsLeft*2*pi/(float)cpr;
+  
+  eleft = desiredAngle - currentAngleLeft;
+  eright = desiredAngle - currentAngleRight;
+  
+  desiredVoltagel = Kp*eleft;
+  desiredVoltager = Kp*eright;
+
+  desiredVoltagePWMl = (float)desiredVoltagel*255/7.5;
+  desiredVoltagePWMr = (float)desiredVoltager*255/7.5;
+
+  if( desiredVoltagePWMl <0){
+    //if it is less than zero it is negative
+    
+    digitalWrite(signOfVoltLeft,false);
+    
+  }else{
+    //if it is greater than zero it is positive
+    
+    digitalWrite(signOfVoltLeft, true);
+  } 
+  
+  if( desiredVoltagePWMr <0){
+    //if it is less than zero it is negative
+    digitalWrite(signOfVoltage, false);
+  }else{
+    //if it is greater than zero it is positive
+    digitalWrite(signOfVoltage, true);
+  } 
+  
+  controlSignall = abs(desiredVoltagePWMl);
+  controlSignalr = abs(desiredVoltagePWMr);
+  
+  if(controlSignall >255){
+    controlSignall = 255;
+  }
+  if(controlSignalr >255){
+    controlSignalr = 255;
+  }
+  analogWrite(motorVoltageLeft,controlSignalr); 
+  analogWrite(motorVoltageRight,controlSignalr); 
+  delay(100);
+}
+void angleRotation(float givenAngle){
+ 
+ int r =0.05;
+ int totalDistance, currentDistance;
+ float degreePerCounts = 90; 
+
+ int countsRotation = (givenAngle/degreePerCounts); 
+ float distancePerCount = (float)((r*2*pi))/((float)4); 
+
+ totalDistance = countsRotation*distancePerCount; 
+    
+
+ if(0<givenAngle && 90 >givenAngle) { 
+    //rotate - bitch 
+    totalDistance - currentDistance;
+    analogWrite(motorVoltageLeft, 0); //turn off left motor
+    analogWrite(motorVoltageRight, 0);
+    printf("Rotating - bitch"); 
+        
+ } else if (90<givenAngle && 180 >givenAngle){ 
+         //rotate + bitch 
+        analogWrite(motorVoltageRight, 0); //turn off right motor 
+        printf("Rotating + bitch");
+ } else { 
+            printf ("no"); 
+}
+}
