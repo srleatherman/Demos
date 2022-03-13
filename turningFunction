@@ -1,0 +1,22 @@
+int givenAngle = 200; 
+    float degreePerCount = 2.8125; 
+
+    int countsRotation = (givenAngle/degreePerCount)*25; 
+    float distancePerCount = ((r*2*pi)/3200); 
+    totalDistance = countsRotation*distancePerCount; 
+    
+
+    if(0<givenAngle && 90 >givenAngle) { 
+        //rotate - bitch 
+        totalDistance - currentDistance
+        analogWrite(motorVoltageLeft, 0); //turn off left motor
+        analogWrite(motorVoltageRight, 0);
+        printf("Rotating - bitch"); 
+        
+    } else if (90<givenAngle && 180 >givenAngle){ 
+         //rotate + bitch 
+        analogWrite(motorVoltageRight, 0); //turn off right motor 
+        printf("Rotating + bitch");
+    } else { 
+            printf ("no"); 
+}
