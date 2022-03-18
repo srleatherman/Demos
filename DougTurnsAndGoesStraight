@@ -14,25 +14,29 @@ Encoder motorRight(outputA, outputB);
 Encoder motorLeft(output2A, output2B);
 
 int loopcount = 0;
-float controlSignall;
-float controlSignalr;
+int feet=1;
+float controlSignall=0;
+float controlSignalr=0;
 float desiredVoltagel;
 float desiredVoltager;
 float desiredVoltagePWMl;
 float desiredVoltagePWMr;
 float eleft;
 float eright;
-float Kp = .2;
-
-//float Kp =.09;
+float Kp =.2;
+float degreesWant= 90;
+bool nextCase= false;
 
 int currentCountsRight;
 int currentCountsLeft;
 float currentAngleRight;
 float currentAngleLeft;
+float dDistance;
 
-float desiredDistance = 0.914;
+float desiredDistance[] = {0.3048,.6, 0.7, 0.85, .99,1.51,1.95, 2.05};
+float distanceRotate = 0.3048;
 float desiredAngle =0;
+float degreeWant= -97;//87;//-97
 
 float pi = 3.1415;
 int cpr = 3200;
@@ -52,10 +56,10 @@ void setup() {
   digitalWrite(signOfVoltLeft, HIGH);
   
   pinMode(motorVoltageRight, OUTPUT);
- 
+  analogWrite(motorVoltageRight, 0);
   
   pinMode(motorVoltageLeft, OUTPUT);
-
+  analogWrite(motorVoltageLeft, 0);
   
   //set all of my input pins
   pinMode(flagIndicator, INPUT);
@@ -63,51 +67,49 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  if(!nextCase){
+    angleRotation(degreeWant);//calls the function that will rotate the function the desired angle
+  } else{
+    moveStraight(2); //calls the function that will rotate
+  }
+  delay(100); // delay between loops so that it is not running continuously
+}
+void angleRotation(float givenAngle){
   
-  desiredDistance= 0; // this is in meters
- int givenAngle ;
- int r =0.05;
- int totalDistance, currentDistance;
- float degreePerCounts = 90; 
-
- int countsRotation = (givenAngle/degreePerCounts); 
- float distancePerCount = ((float)(r*2*pi))/((float)4); 
- desiredDistance = 0.3048; //countsRotation*distancePerCount; 
- desiredAngle = desiredDistance/0.05; // 0.05m is equivalent to 1 rad
+  distanceRotate = float(givenAngle)/float(20);
+  desiredAngle = 2*pi*.280*180*distanceRotate/360; // 0.05m is equivalent to 1 rad
   
   //reads the current state of the encoder in counts
   currentCountsRight = motorRight.read(); // this is reading the current counts from the encoder
   currentCountsLeft = motorLeft.read();
   
-  loopcount = loopcount + 1;
-  if (loopcount == 5) {
-      //
-      loopcount = 0;
-  }  
-  
+  //this changes the counts into the anguluar position
   currentAngleRight = (float)currentCountsRight*2*pi/(float)cpr;
   currentAngleLeft = (float)currentCountsLeft*2*pi/(float)cpr;
-  
-  eleft = desiredAngle - currentAngleLeft;
-  eright = desiredAngle - currentAngleRight;
-  
-  desiredVoltagel = Kp*eleft;
-  desiredVoltager = Kp*eright;
 
+  //finds the error between the wheels
+  eleft = desiredAngle - currentAngleLeft;
+  eright = desiredAngle + currentAngleRight;
+
+  //finds the voltage using the controller. the 2.5 is the adjustment we had to make from the simulink model to the actual implementation
+  desiredVoltagel = 2.5*Kp*eleft;
+  desiredVoltager = 2.5*Kp*eright;
+
+  //makes the voltage into a pwm value that the pin can understand
   desiredVoltagePWMl = (float)desiredVoltagel*255/7.5;
   desiredVoltagePWMr = (float)desiredVoltager*255/7.5;
 
+  //determines direction that the left wheel turns
   if( desiredVoltagePWMl <0){
     //if it is less than zero it is negative
-    
     digitalWrite(signOfVoltLeft,false);
     
   }else{
     //if it is greater than zero it is positive
-    
     digitalWrite(signOfVoltLeft, true);
   } 
   
+  //determines the direction that the right wheel turns
   if( desiredVoltagePWMr <0){
     //if it is less than zero it is negative
     digitalWrite(signOfVoltage, false);
@@ -118,41 +120,83 @@ void loop() {
   
   controlSignall = abs(desiredVoltagePWMl);
   controlSignalr = abs(desiredVoltagePWMr);
-  
+
+  //makes sure that the PWM is not larger that 255
   if(controlSignall >255){
     controlSignall = 255;
   }
   if(controlSignalr >255){
     controlSignalr = 255;
   }
-  analogWrite(motorVoltageLeft,controlSignalr); 
-  analogWrite(motorVoltageRight,controlSignalr); 
-  delay(100);
+  if(abs(eleft) <0.7 || abs(eright)<0.7){ //1 for 180
+    analogWrite(motorVoltageLeft,0); 
+    analogWrite(motorVoltageRight,0);
+    nextCase = true;// makes it go from the rotating function to the going straight function
+    delay(10);// delay added so there is a break between rotating and moving straight.
+  }else{
+    analogWrite(motorVoltageLeft,1.2*controlSignall); //the left wheel moves slower so this is how we improvised that. Increased the voltage
+    analogWrite(motorVoltageRight,controlSignall); 
+  } 
+
 }
-void angleRotation(float givenAngle){
- 
- int r =0.05;
- int totalDistance, currentDistance;
- float degreePerCounts = 90; 
+void moveStraight(int feet){
+  dDistance=desiredDistance[feet]; // this is in meters
+  desiredAngle = dDistance/0.05; // 0.05m is equivalent to 1 rad
+  
+  //reads the current state of the encoder in counts
+  currentCountsRight = motorRight.read(); // this is reading the current counts from the encoder
+  currentCountsLeft = motorLeft.read();
 
- int countsRotation = (givenAngle/degreePerCounts); 
- float distancePerCount = (float)((r*2*pi))/((float)4); 
+  //changes the counts into angle
+  currentAngleRight = (float)currentCountsRight*2*pi/(float)cpr;
+  currentAngleLeft = (float)currentCountsLeft*2*pi/(float)cpr;
 
- totalDistance = countsRotation*distancePerCount; 
+  //computes the angle
+  eleft = desiredAngle - currentAngleLeft;
+  eright = desiredAngle - currentAngleRight;
+
+  //computes the desired voltage from the controller. We increased Kp inorder to account for the weight and the friction
+  desiredVoltagel = 3.9*Kp*eleft; ///3.9 for 180 
+  desiredVoltager = 3.9*Kp*eright;
+
+  //makes the voltage into a pwm value that the pin can understand
+  desiredVoltagePWMl = (float)desiredVoltagel*255/7.5;
+  desiredVoltagePWMr = (float)desiredVoltager*255/7.5;
+
+  //determines the direction of the left wheel
+  if( desiredVoltagePWMl <0){
+    //if it is less than zero it is negative
+    digitalWrite(signOfVoltLeft,true);
+  }else{
+    //if it is greater than zero it is positive
     
+    digitalWrite(signOfVoltLeft, false);
+  } 
+  //determines the direction of the right wheel
+  if( desiredVoltagePWMr <0){
+    //if it is less than zero it is negative
+    digitalWrite(signOfVoltage, false);
+  }else{
+    //if it is greater than zero it is positive
+    digitalWrite(signOfVoltage, true);
+  } 
+  
+  controlSignall = abs(desiredVoltagePWMl);
+  controlSignalr = abs(desiredVoltagePWMr);
 
- if(0<givenAngle && 90 >givenAngle) { 
-    //rotate - bitch 
-    totalDistance - currentDistance;
-    analogWrite(motorVoltageLeft, 0); //turn off left motor
-    analogWrite(motorVoltageRight, 0);
-    printf("Rotating - bitch"); 
-        
- } else if (90<givenAngle && 180 >givenAngle){ 
-         //rotate + bitch 
-        analogWrite(motorVoltageRight, 0); //turn off right motor 
-        printf("Rotating + bitch");
- } else { 
-            printf ("no"); 
-}
+  //makes sure there is no over saturation
+  if(controlSignall >255){
+    controlSignall = 255;
+  }
+  if(controlSignalr >255){
+    controlSignalr = 255;
+  }
+ 
+  if(abs(eleft) <0.94 || abs(eright)<0.94){
+    analogWrite(motorVoltageLeft,0); 
+    analogWrite(motorVoltageRight,0);
+  }else{
+    analogWrite(motorVoltageLeft,controlSignall); 
+    analogWrite(motorVoltageRight,controlSignall); 
+  }
 }
