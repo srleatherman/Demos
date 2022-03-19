@@ -1,0 +1,130 @@
+#include "Encoder.h" //this gives us access to the encoder.h files 
+#define output2A 6 //this pin is output A for the encoder motor 2
+#define output2B 3 //this pin is output B for the encoder motor 2
+#define outputA 5 //this pin is output A for the encoder motor 1
+#define outputB 2 // this pin is output B for the encoder motor 1
+#define motorVoltageRight 9 //this is one of the two voltage pwm pins we could have picked
+#define motorVoltageLeft 10//thi is for the second motor voltage and a pwm pin
+#define button 4 // this pin is for setting the interupt
+#define signOfVoltage 7 // this is what direction the wheel will turn motor 1
+#define signOfVoltLeft 8
+#define flagIndicator 12 // this pin is if there is a flag
+
+Encoder motorRight(outputA, outputB);
+Encoder motorLeft(output2A, output2B);
+
+int loopcount = 0;
+float controlSignall;
+float controlSignalr;
+float desiredVoltagel;
+float desiredVoltager;
+float desiredVoltagePWMl;
+float desiredVoltagePWMr;
+float eleft;
+float eright;
+float Kp=.18;
+
+int currentCountsRight;
+int currentCountsLeft;
+float currentAngleRight;
+float currentAngleLeft;
+
+float desiredDistance[] = {0.3048,.723, 1.1,1.52,1.95, 2.05};
+float desiredAngle =0;
+
+float pi = 3.1415;
+int cpr = 3200;
+int rando;
+float dDistance;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(19200);
+  //set up all of my output pins 
+  pinMode(button, OUTPUT);
+  digitalWrite(button, HIGH);
+  
+  pinMode(signOfVoltage,OUTPUT);
+  digitalWrite(signOfVoltage, HIGH);
+
+  pinMode(signOfVoltLeft,OUTPUT);
+  digitalWrite(signOfVoltLeft, HIGH);
+  
+  pinMode(motorVoltageRight, OUTPUT);
+ 
+  
+  pinMode(motorVoltageLeft, OUTPUT);
+
+  
+  //set all of my input pins
+  pinMode(flagIndicator, INPUT);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  
+  dDistance=desiredDistance[3]; // this is in meters this pulls from the array that stores a bunch of different distances the robot can move
+  desiredAngle = dDistance/0.05; // 0.05m is equivalent to 1 rad, so this allows us to convert angular position to linear position
+  
+  //reads the current state of the encoder in counts
+  currentCountsRight = motorRight.read(); // this is reading the current counts from the encoder
+  currentCountsLeft = motorLeft.read(); 
+
+  //converts counts into angle (rad)
+  currentAngleRight = (float)currentCountsRight*2*pi/(float)cpr;
+  currentAngleLeft = (float)currentCountsLeft*2*pi/(float)cpr;
+
+  //finds the error between the desired and current angle
+  eleft = desiredAngle - currentAngleLeft;
+  eright = desiredAngle - currentAngleRight;
+
+  //implements the controller
+  desiredVoltagel = 0.95*Kp*eleft; // the left wheel turns slower than the right wheel so there is this factor to help the wheels roll at the same speed
+  desiredVoltager = Kp*eright;
+
+  //changes the voltage into a pwm value that the pin can understand
+  desiredVoltagePWMl = (float)desiredVoltagel*255/7.5;
+  desiredVoltagePWMr = (float)desiredVoltager*255/7.5;
+
+  //determines the direction of the left wheel
+  if( desiredVoltagePWMl <0){
+    //if it is less than zero it is negative
+    
+    digitalWrite(signOfVoltLeft,true);
+    
+  }else{
+    //if it is greater than zero it is positive
+    
+    digitalWrite(signOfVoltLeft, false);
+  } 
+
+  //determins the direction of the right wheel
+  if( desiredVoltagePWMr <0){
+    //if it is less than zero it is negative
+    digitalWrite(signOfVoltage, false);
+  }else{
+    //if it is greater than zero it is positive
+    digitalWrite(signOfVoltage, true);
+  } 
+  
+  controlSignall = abs(desiredVoltagePWMl);
+  controlSignalr = abs(desiredVoltagePWMr);
+
+  //makes sure that the voltage is not over 255 and over saturated.
+  if(controlSignall >255){
+    controlSignall = 255;
+  }
+  if(controlSignalr >255){
+    controlSignalr = 255;
+  }
+
+  //writes the voltage to the voltage pin that will rotate the wheels until there is a slight error of 0.05 m
+  if(abs(eleft) <0.05 || abs(eright)<0.05){
+    analogWrite(motorVoltageLeft,0); 
+    analogWrite(motorVoltageRight,0);
+  }else{
+    analogWrite(motorVoltageLeft,controlSignalr); 
+    analogWrite(motorVoltageRight,controlSignall); 
+  }
+  delay(100);
+}
